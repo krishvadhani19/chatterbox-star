@@ -247,18 +247,17 @@
     <script>
         const REPO_OWNER = 'resemble-ai';
         const REPO_NAME = 'chatterbox';
-        const UPDATE_INTERVAL = 60000; // Update every 60 seconds to avoid rate limits
+        const UPDATE_INTERVAL = 15000; // Update every 5 seconds
         
-        // For now, using direct GitHub API until Vercel is set up
-        const USE_DIRECT_API = true; // Set to false once Vercel is deployed
-        const API_URL = 'https://stars-serverless.vercel.app/'; 
+        // Configuration - try Vercel first, fallback to direct GitHub API
+        const API_URL = 'https://stars-serverless.vercel.app/api/stars';
         
         let currentStars = 0;
         let targetStars = 0;
         let animationFrame;
         let updateTimer;
         let retryCount = 0;
-        let isRateLimited = false;
+        let useDirectAPI = false; // Start with Vercel, fallback if needed
         
         function formatNumber(num) {
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -308,46 +307,60 @@
                 `;
             } else {
                 // Update digits with animation
-                const digits = counterEl.querySelectorAll('.counter-digit');
-                const newDigits = formattedValue.split('');
-                const currentDigits = Array.from(digits).map(d => d.textContent);
-                
-                // Update counter wrapper
                 const wrapper = counterEl.querySelector('.counter-wrapper');
-                wrapper.innerHTML = newDigits.map((char, i) => {
-                    const isChanging = i >= currentDigits.length || char !== currentDigits[i];
-                    return `<span class="counter-digit ${isChanging ? 'changing' : ''}">${char}</span>`;
-                }).join('');
+                if (wrapper) {
+                    const currentDigits = Array.from(wrapper.querySelectorAll('.counter-digit')).map(d => d.textContent);
+                    const newDigits = formattedValue.split('');
+                    
+                    wrapper.innerHTML = newDigits.map((char, i) => {
+                        const isChanging = i >= currentDigits.length || char !== currentDigits[i];
+                        return `<span class="counter-digit ${isChanging ? 'changing' : ''}">${char}</span>`;
+                    }).join('');
+                }
             }
         }
         
         async function fetchStarCount() {
             try {
                 let response;
+                let data;
                 
-                if (USE_DIRECT_API) {
-                    // Direct GitHub API call (60 requests/hour limit)
+                if (!useDirectAPI) {
+                    // Try Vercel API first
+                    try {
+                        response = await fetch(API_URL);
+                        if (!response.ok) throw new Error('Vercel API failed');
+                        data = await response.json();
+                        
+                        const newStars = data.stars;
+                        if (newStars !== undefined && newStars !== targetStars) {
+                            targetStars = newStars;
+                            animateCounter(currentStars, targetStars);
+                        }
+                    } catch (vercelError) {
+                        console.log('Vercel API failed, falling back to GitHub API');
+                        useDirectAPI = true;
+                        // Don't throw, just fall through to direct API
+                    }
+                }
+                
+                if (useDirectAPI) {
+                    // Fallback to direct GitHub API
                     response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`);
-                } else {
-                    // Vercel API call (no rate limits)
-                    response = await fetch(API_URL);
+                    if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+                    
+                    data = await response.json();
+                    const newStars = data.stargazers_count;
+                    
+                    if (newStars !== undefined && newStars !== targetStars) {
+                        targetStars = newStars;
+                        animateCounter(currentStars, targetStars);
+                    }
                 }
-                
-                if (!response.ok) {
-                    throw new Error(`API error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const newStars = USE_DIRECT_API ? data.stargazers_count : data.stars;
                 
                 // Clear any warnings on successful fetch
                 document.getElementById('rateLimitWarning').innerHTML = '';
                 retryCount = 0;
-                
-                if (newStars !== targetStars) {
-                    targetStars = newStars;
-                    animateCounter(currentStars, targetStars);
-                }
                 
                 // Update last update time
                 const now = new Date();
@@ -364,29 +377,15 @@
                 } else {
                     document.getElementById('counter').innerHTML = 
                         '<span class="error">Error loading star count</span>';
+                    
+                    // If we haven't tried direct API yet, switch to it
+                    if (!useDirectAPI) {
+                        useDirectAPI = true;
+                        retryCount = 0;
+                        setTimeout(fetchStarCount, 2000);
+                    }
                 }
             }
-        }
-        
-        function showRateLimitWarning(resetTime) {
-            const reset = new Date(parseInt(resetTime) * 1000);
-            const warning = document.getElementById('rateLimitWarning');
-            warning.innerHTML = `
-                <div class="rate-limit-warning">
-                    ⚠️ Approaching GitHub API rate limit. 
-                    <a href="https://github.com/settings/tokens" target="_blank">Add a token</a> for higher limits.
-                </div>
-            `;
-        }
-        
-        function showRateLimitError(message) {
-            const warning = document.getElementById('rateLimitWarning');
-            warning.innerHTML = `
-                <div class="rate-limit-warning">
-                    ⚠️ ${message}<br>
-                    <small>Tip: Open this HTML locally and add a GitHub token for 5000 requests/hour</small>
-                </div>
-            `;
         }
         
         function startUpdates() {
@@ -417,10 +416,6 @@
                 startUpdates();
             }
         });
-        
-        // Optional: Add GitHub token support for higher rate limits
-        // Uncomment the line below and add your token for 5000 requests/hour
-        // const GITHUB_TOKEN = 'ghp_xxxxxxxxxxxxxxxxxxxx'; // Replace with your token
     </script>
 </body>
 </html>
