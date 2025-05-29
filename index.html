@@ -247,10 +247,11 @@
     <script>
         const REPO_OWNER = 'resemble-ai';
         const REPO_NAME = 'chatterbox';
-        const UPDATE_INTERVAL = 5000; // Back to 5 seconds - no rate limit issues!
+        const UPDATE_INTERVAL = 60000; // Update every 60 seconds to avoid rate limits
         
-        // Replace with your Vercel API URL
-        const API_URL = 'https://stars-serverless.vercel.app/'; // ← REPLACE THIS
+        // For now, using direct GitHub API until Vercel is set up
+        const USE_DIRECT_API = true; // Set to false once Vercel is deployed
+        const API_URL = 'https://stars-serverless.vercel.app/'; 
         
         let currentStars = 0;
         let targetStars = 0;
@@ -322,14 +323,22 @@
         
         async function fetchStarCount() {
             try {
-                const response = await fetch(API_URL);
+                let response;
+                
+                if (USE_DIRECT_API) {
+                    // Direct GitHub API call (60 requests/hour limit)
+                    response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`);
+                } else {
+                    // Vercel API call (no rate limits)
+                    response = await fetch(API_URL);
+                }
                 
                 if (!response.ok) {
                     throw new Error(`API error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                const newStars = data.stars;
+                const newStars = USE_DIRECT_API ? data.stargazers_count : data.stars;
                 
                 // Clear any warnings on successful fetch
                 document.getElementById('rateLimitWarning').innerHTML = '';
