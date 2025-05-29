@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatterbox Live Star Counter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .counter-container {
+            text-align: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        .repo-info {
+            margin-bottom: 30px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .repo-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #58a6ff, #79c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .repo-subtitle {
+            font-size: 18px;
+            color: #8b949e;
+            font-weight: 400;
+        }
+
+        .star-counter {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 40px 60px;
+            margin: 20px 0;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .star-counter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(88, 166, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .star-icon {
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 32px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .counter-wrapper {
+            display: inline-flex;
+            align-items: center;
+            font-size: 64px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            position: relative;
+        }
+
+        .counter-digit {
+            display: inline-block;
+            transition: transform 0.3s ease-out;
+        }
+
+        .counter-digit.changing {
+            animation: digitFlip 0.3s ease-out;
+        }
+
+        @keyframes digitFlip {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.2); }
+            100% { transform: translateY(0) scale(1); }
+        }
+
+        .counter-label {
+            font-size: 20px;
+            color: #8b949e;
+            margin-top: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 25px;
+            padding: 8px 16px;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 20px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #ff0000;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .live-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ff6b6b;
+            text-transform: uppercase;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        .loading {
+            font-size: 24px;
+            color: #58a6ff;
+            animation: loadingPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loadingPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .error {
+            color: #ff6b6b;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .rate-limit-warning {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #ff6b6b;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .rate-limit-warning a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .rate-limit-warning a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .repo-title {
+                font-size: 32px;
+            }
+            .counter-wrapper {
+                font-size: 48px;
+            }
+            .star-counter {
+                padding: 30px 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="counter-container">
+        <div class="repo-info">
+            <h1 class="repo-title">Chatterbox</h1>
+            <p class="repo-subtitle">Open source TTS model by Resemble AI</p>
+        </div>
+        
+        <div class="star-counter">
+            <div id="counter" class="loading">Loading...</div>
+            <div class="counter-label">GitHub Stars</div>
+        </div>
+        
+        <div class="live-indicator">
+            <div class="live-dot"></div>
+            <span class="live-text">Live</span>
+        </div>
+        
+        <div class="last-update" id="lastUpdate"></div>
+        <div id="rateLimitWarning"></div>
+    </div>
+
+    <script>
+        const REPO_OWNER = 'resemble-ai';
+        const REPO_NAME = 'chatterbox';
+        const UPDATE_INTERVAL = 5000; // Back to 5 seconds - no rate limit issues!
+        
+        // Replace with your Vercel API URL
+        const API_URL = 'https://stars-serverless.vercel.app/'; // ← REPLACE THIS
+        
+        let currentStars = 0;
+        let targetStars = 0;
+        let animationFrame;
+        let updateTimer;
+        let retryCount = 0;
+        let isRateLimited = false;
+        
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function animateCounter(from, to) {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+            
+            const duration = 1000; // 1 second animation
+            const startTime = performance.now();
+            const diff = to - from;
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function for smooth animation
+                const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+                
+                currentStars = Math.floor(from + diff * easeOutCubic);
+                displayCounter(currentStars);
+                
+                if (progress < 1) {
+                    animationFrame = requestAnimationFrame(update);
+                } else {
+                    currentStars = to;
+                    displayCounter(currentStars);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+        
+        function displayCounter(value) {
+            const counterEl = document.getElementById('counter');
+            const formattedValue = formatNumber(value);
+            
+            if (counterEl.classList.contains('loading')) {
+                counterEl.classList.remove('loading');
+                counterEl.innerHTML = `
+                    <span class="star-icon">⭐</span>
+                    <span class="counter-wrapper">${formattedValue.split('').map(char => 
+                        `<span class="counter-digit">${char}</span>`
+                    ).join('')}</span>
+                `;
+            } else {
+                // Update digits with animation
+                const digits = counterEl.querySelectorAll('.counter-digit');
+                const newDigits = formattedValue.split('');
+                const currentDigits = Array.from(digits).map(d => d.textContent);
+                
+                // Update counter wrapper
+                const wrapper = counterEl.querySelector('.counter-wrapper');
+                wrapper.innerHTML = newDigits.map((char, i) => {
+                    const isChanging = i >= currentDigits.length || char !== currentDigits[i];
+                    return `<span class="counter-digit ${isChanging ? 'changing' : ''}">${char}</span>`;
+                }).join('');
+            }
+        }
+        
+        async function fetchStarCount() {
+            try {
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`API error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const newStars = data.stars;
+                
+                // Clear any warnings on successful fetch
+                document.getElementById('rateLimitWarning').innerHTML = '';
+                retryCount = 0;
+                
+                if (newStars !== targetStars) {
+                    targetStars = newStars;
+                    animateCounter(currentStars, targetStars);
+                }
+                
+                // Update last update time
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = 
+                    `Last updated: ${now.toLocaleTimeString()}`;
+                
+            } catch (error) {
+                console.error('Error fetching star count:', error);
+                retryCount++;
+                
+                if (retryCount < 3) {
+                    // Retry with exponential backoff
+                    setTimeout(fetchStarCount, Math.pow(2, retryCount) * 1000);
+                } else {
+                    document.getElementById('counter').innerHTML = 
+                        '<span class="error">Error loading star count</span>';
+                }
+            }
+        }
+        
+        function showRateLimitWarning(resetTime) {
+            const reset = new Date(parseInt(resetTime) * 1000);
+            const warning = document.getElementById('rateLimitWarning');
+            warning.innerHTML = `
+                <div class="rate-limit-warning">
+                    ⚠️ Approaching GitHub API rate limit. 
+                    <a href="https://github.com/settings/tokens" target="_blank">Add a token</a> for higher limits.
+                </div>
+            `;
+        }
+        
+        function showRateLimitError(message) {
+            const warning = document.getElementById('rateLimitWarning');
+            warning.innerHTML = `
+                <div class="rate-limit-warning">
+                    ⚠️ ${message}<br>
+                    <small>Tip: Open this HTML locally and add a GitHub token for 5000 requests/hour</small>
+                </div>
+            `;
+        }
+        
+        function startUpdates() {
+            // Clear any existing timer
+            if (updateTimer) {
+                clearInterval(updateTimer);
+            }
+            
+            // Initial fetch
+            fetchStarCount();
+            
+            // Set up periodic updates
+            updateTimer = setInterval(fetchStarCount, UPDATE_INTERVAL);
+        }
+        
+        // Start the counter
+        startUpdates();
+        
+        // Add visibility change handler to pause/resume updates
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Page is hidden, pause updates to save API calls
+                if (updateTimer) {
+                    clearInterval(updateTimer);
+                }
+            } else {
+                // Page is visible again, resume updates
+                startUpdates();
+            }
+        });
+        
+        // Optional: Add GitHub token support for higher rate limits
+        // Uncomment the line below and add your token for 5000 requests/hour
+        // const GITHUB_TOKEN = 'ghp_xxxxxxxxxxxxxxxxxxxx'; // Replace with your token
+    </script>
+</body>
+</html>
